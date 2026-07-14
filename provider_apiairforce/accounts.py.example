@@ -1,0 +1,9 @@
+from __future__ import annotations
+
+from typing import List
+
+# apiairforce API Keys（本地凭证，不入版本控制）
+# 复制本文件为 accounts.py 并填入真实密钥
+API_KEYS: List[str] = [
+    "sk-example-xxxx",
+]
