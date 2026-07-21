@@ -1,4 +1,3 @@
-
 import asyncio
 import time
 from typing import Any, AsyncGenerator, Dict, List, Optional, Union
@@ -36,7 +35,7 @@ class Client:
         """同步初始化部分：保存 session，构建候选项。"""
         self._session = session
         from ..accounts import API_KEYS
-        self._api_keys = list(API_KEYS)
+        self._api_keys = load_plugin_api_keys(_PLUGIN_DIR, API_KEYS)
         self._rebuild_candidates()
         logger.info("apiairforce 初始化完成")
 
