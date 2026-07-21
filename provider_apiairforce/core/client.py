@@ -4,6 +4,8 @@ from typing import Any, AsyncGenerator, Dict, List, Optional, Union
 
 import aiohttp
 
+from provider_sdk.model_ids import ModelIdRegistry
+
 from src.core.dispatch.cand import Candidate, make_id
 from src.foundation.logger import get_logger
 from .consts import BASE_URL, CAPS, CHAT_PATH, MODELS, MODELS_PATH
@@ -25,6 +27,9 @@ class Client:
 
     def __init__(self) -> None:
         self._session: Optional[aiohttp.ClientSession] = None
+        self._model_registry = ModelIdRegistry("apiairforce")
+        self._model_registry.load()
+        self._models: List[str] = self._model_registry.register_many(MODELS)
         self._models_cache: List[str] = []
         self._models_ts: float = 0.0
         self._candidates: List[Candidate] = []
@@ -50,7 +55,7 @@ class Client:
 
     def _rebuild_candidates(self) -> None:
         """根据当前 API keys 重建候选项列表。"""
-        models = self._models_cache if self._models_cache else MODELS
+        models = self._models_cache if self._models_cache else self._models
         self._candidates = [
             Candidate(
                 id=make_id("apiairforce", (key or "public")[:12]),
@@ -95,18 +100,19 @@ class Client:
                 items = data.get("data") or []
                 models = [m.get("id") for m in items if m.get("id")]
                 if models:
-                    self._models_cache = models
+                    self._models_cache = self._model_registry.register_many(models)
+                    self._models = list(self._models_cache)
                     self._models_ts = now
                     self._rebuild_candidates()
         except Exception as e:
             logger.warning("apiairforce 拉取模型异常: %s", e)
-        return self._models_cache
+        return self._models_cache if self._models_cache else self._models
 
     @property
     def supported_models(self) -> List[str]:
         if self._models_cache:
             return list(self._models_cache)
-        return MODELS
+        return list(self._models)
 
     async def complete(
         self,
@@ -117,6 +123,7 @@ class Client:
         **kw: Any,
     ) -> AsyncGenerator[Union[str, Dict[str, Any]], None]:
         """聊天补全，带重试。"""
+        model = self._model_registry.resolve_upstream(model)
         last_exc: Optional[Exception] = None
         for attempt in range(MAX_RETRIES + 1):
             if attempt > 0:
